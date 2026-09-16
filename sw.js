@@ -1,4 +1,4 @@
-const CACHE_NAME = 'skibidi-defense-v5-neon';
+const CACHE_NAME = 'skibidi-defense-v6-ui-overlap-fix';
 const ASSETS = [
   './',
   './index.html',
