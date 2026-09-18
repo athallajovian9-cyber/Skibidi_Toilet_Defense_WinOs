@@ -1424,7 +1424,30 @@ body.performanceReduced *{scroll-behavior:auto!important;}
   </div>
 
     <!-- ONLINE P2P CO-OP MODAL -->
-  <div id="onlineCoopModal" style="position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,8,12,0.85);backdrop-filter:blur(8px);z-index:999999;padding:20px;">
+    <!-- NIGHT EXCLUSIVE BLACK MARKET SHOP -->
+  <div id="nightShopModal" style="position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(4,2,10,0.88);backdrop-filter:blur(10px);z-index:999995;padding:16px;">
+    <div class="acctCard" style="max-width:560px;width:100%;border:1px solid #c084fc;background:linear-gradient(180deg,#170b28,#0c0617);box-shadow:0 0 40px rgba(192,132,252,0.3);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div class="acctTitle" style="color:#c084fc;display:flex;align-items:center;gap:8px;">
+          <span>🌙 NIGHT BLACK MARKET</span>
+          <span style="font-size:10px;padding:2px 8px;border-radius:4px;background:rgba(192,132,252,0.2);border:1px solid #c084fc;">ACTIVE ONLY AT NIGHT</span>
+        </div>
+        <button class="acctBtn" style="padding:2px 8px;" onclick="closeNightShop()">✕</button>
+      </div>
+      <div class="acctSub" style="color:#d8b4fe;">Dark market tech. Purchased items grant massive power at night, deactivate during the day, and restore automatically when night returns!</div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding:6px 12px;background:rgba(0,0,0,0.5);border-radius:6px;">
+        <span style="font-size:11px;color:#cbd5e1;">OPERATIVE SKILL POINTS:</span>
+        <strong id="nightShopSkillPts" style="font-size:14px;color:#ffd35c;">0 PTS</strong>
+      </div>
+
+      <!-- ITEM GRID -->
+      <div id="nightShopGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;"></div>
+
+      <div class="acctNote" style="color:#a855f7;">Purchased night artifacts remain permanently bound to your operative and automatically re-equip every time midnight falls.</div>
+    </div>
+  </div>
+<div id="onlineCoopModal" style="position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,8,12,0.85);backdrop-filter:blur(8px);z-index:999999;padding:20px;">
     <div class="acctCard" style="max-width:440px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
         <div class="acctTitle" style="color:#00f0ff;">🌐 ONLINE P2P CO-OP LOBBY</div>
@@ -1900,6 +1923,7 @@ body.performanceReduced *{scroll-behavior:auto!important;}
       <button id="focusBtn" class="miniBtn coreOpsBtn" title="X — Tactical focus"><span>X</span><b>FOCUS</b></button>
     </div>
     <div class="commandGrid">
+      <button id="nightShopBtn" class="miniBtn" style="display:none;background:linear-gradient(135deg,#2e1065,#581c87);border:1px solid #c084fc;color:#f3e8ff;font-weight:900;box-shadow:0 0 12px rgba(192,132,252,0.4);" onclick="openNightShop()">🌙 NIGHT SHOP</button>
       <button id="drillFissureBtn" class="miniBtn"><span>F</span> FISSURE</button>
       <button id="tvHypnoBtn" class="miniBtn"><span>T</span> HYPNO</button>
       <button id="bassBlastBtn" class="miniBtn"><span>B</span> BASS</button>
@@ -12351,6 +12375,155 @@ const VoiceChatManager = {
 };
 
 
+
+// ==========================================================
+// NIGHT EXCLUSIVE BLACK MARKET ENGINE
+// Items active ONLY during night; deactivate on day, restore on night!
+// ==========================================================
+const NIGHT_SHOP_ITEMS = [
+  {
+    id: 'lunar_scythe',
+    name: '🌙 LUNAR ECLIPSE SCYTHE',
+    cost: 15,
+    icon: '⚔️',
+    desc: 'Bullets deal +85% damage and pierce through 2 extra enemies at night.',
+    color: '#c084fc',
+    purchased: false
+  },
+  {
+    id: 'shadow_shroud',
+    name: '👤 SHADOW CLOAK',
+    cost: 12,
+    icon: '🛡️',
+    desc: 'Grants 50% evasion chance and +40% sprint speed under the night sky.',
+    color: '#38bdf8',
+    purchased: false
+  },
+  {
+    id: 'nocturnal_vampirism',
+    name: '🩸 NOCTURNAL ESSENCE',
+    cost: 18,
+    icon: '🩸',
+    desc: 'Each enemy kill during night restores +1 Life and charges the Core Shield.',
+    color: '#ff3344',
+    purchased: false
+  },
+  {
+    id: 'cosmic_supernova',
+    name: '🌌 ASTRAL SINGULARITY',
+    cost: 25,
+    icon: '🔮',
+    desc: 'Periodically pulls nearby Astro toilets into a crushing gravity vortex at night.',
+    color: '#f43f5e',
+    purchased: false
+  }
+];
+
+let isNightActive = false;
+let nightInventory = new Set(JSON.parse(localStorage.getItem('astro_night_inventory') || '[]'));
+
+// Check and save purchases
+NIGHT_SHOP_ITEMS.forEach(it => {
+  if(nightInventory.has(it.id)) it.purchased = true;
+});
+
+function hasNightItem(id){
+  return isNightActive && nightInventory.has(id);
+}
+
+function updateNightCycleState(nightValue){
+  // Night active when night ambient value > 0.45
+  const currentlyNight = nightValue > 0.45;
+  const btn = document.getElementById('nightShopBtn');
+
+  if(currentlyNight !== isNightActive){
+    isNightActive = currentlyNight;
+
+    if(isNightActive){
+      // DAY -> NIGHT TRANSITION: Shop & Items RESTORE!
+      if(btn) btn.style.display = 'inline-block';
+      showToast('🌙 MIDNIGHT HAS FALLEN — NIGHT SHOP & ARTIFACTS ONLINE!');
+      if(typeof sfx !== 'undefined' && sfx.purchase) sfx.purchase();
+    } else {
+      // NIGHT -> DAY TRANSITION: Shop & Items GONE!
+      if(btn) btn.style.display = 'none';
+      closeNightShop();
+      showToast('☀️ DAWN RISES — NIGHT MARKET & ARTIFACTS TEMPORARILY DORMANT');
+    }
+    updateNightShopUI();
+  }
+}
+
+function openNightShop(){
+  if(!isNightActive){
+    showToast('☀️ NIGHT SHOP CLOSED — Opens only under the cover of night!');
+    return;
+  }
+  ensureAudio(); if(typeof sfx !== 'undefined' && sfx.uiClick) sfx.uiClick();
+  renderNightShop();
+  const m = document.getElementById('nightShopModal');
+  if(m) m.style.display = 'flex';
+}
+
+function closeNightShop(){
+  const m = document.getElementById('nightShopModal');
+  if(m) m.style.display = 'none';
+}
+
+function renderNightShop(){
+  const grid = document.getElementById('nightShopGrid');
+  const ptsEl = document.getElementById('nightShopSkillPts');
+  if(ptsEl) ptsEl.textContent = (typeof skillPoints === 'number' ? skillPoints : 0) + ' PTS';
+  if(!grid) return;
+
+  grid.innerHTML = '';
+  NIGHT_SHOP_ITEMS.forEach(item => {
+    const isOwned = nightInventory.has(item.id);
+    const canAfford = (typeof skillPoints === 'number' ? skillPoints : 0) >= item.cost;
+
+    const card = document.createElement('div');
+    card.style.cssText = `background:rgba(18,10,34,0.85);border:1px solid ${isOwned ? '#8bff5c' : item.color};border-radius:8px;padding:10px;display:flex;flex-direction:column;justify-content:space-between;gap:6px;box-shadow:0 4px 14px rgba(0,0,0,0.5);`;
+    card.innerHTML = `
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <strong style="color:${item.color};font-size:11px;">${item.name}</strong>
+          <span style="font-size:11px;">${item.icon}</span>
+        </div>
+        <div style="color:#cbd5e1;font-size:10px;line-height:1.4;margin:4px 0;">${item.desc}</div>
+      </div>
+      <button class="acctBtn" style="width:100%;padding:6px;font-weight:900;font-size:10px;${isOwned ? 'border-color:#8bff5c;color:#8bff5c;background:rgba(139,255,92,0.1);' : canAfford ? 'border-color:' + item.color + ';color:' + item.color + ';background:rgba(192,132,252,0.15);' : 'opacity:0.5;'}" onclick="buyNightItem('${item.id}')">
+        ${isOwned ? '✅ EQUIPPED (NIGHT ONLY)' : 'BUY FOR ' + item.cost + ' PTS'}
+      </button>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function buyNightItem(id){
+  const item = NIGHT_SHOP_ITEMS.find(it => it.id === id);
+  if(!item || nightInventory.has(id)) return;
+
+  if((typeof skillPoints === 'number' ? skillPoints : 0) < item.cost){
+    showToast('❌ Not enough Skill Points! (Need ' + item.cost + ' PTS)');
+    return;
+  }
+
+  skillPoints -= item.cost;
+  nightInventory.add(id);
+  localStorage.setItem('astro_night_inventory', JSON.stringify(Array.from(nightInventory)));
+  if(typeof updateHud === 'function') updateHud();
+  if(typeof sfx !== 'undefined' && sfx.purchase) sfx.purchase();
+  showToast('🌙 UNLOCKED: ' + item.name + ' [ACTIVE AT NIGHT]');
+  renderNightShop();
+}
+
+function updateNightShopUI(){
+  if(document.getElementById('nightShopModal')?.style.display === 'flex'){
+    renderNightShop();
+  }
+}
+
+
 function drawActionPlayer(){
   const p = actionPlayer;
   if(!p || !actionModeReady) return;
@@ -12847,6 +13020,10 @@ function popOneToilet(i, meta={}){
   const baseDmg = meta.source === 'CLICK' ? 3 : 1;
   const plungerBonus = weaponRank('plunger') * 2; // +2 DMG per plunger rank
   let damage = ((crit ? Math.max(8, Math.round(baseDmg * (player.critMult || 2.5))) : baseDmg) + extra + plungerBonus + bonusDmg) * (player.buildDamageMult || 1);
+  if(typeof hasNightItem === 'function' && hasNightItem('lunar_scythe')){
+    damage *= 1.85;
+    addDamageNumber(t.x, t.y - 24, '🌙 LUNAR SCYTHE +85%', '#c084fc');
+  }
   if(meta.precision === 'PERFECT') damage *= (player.precisionDamageMult || 1.06);
   if(meta.execute){ t.armorShieldHp=0; damage=t.hp+1; }
   else if(t.exposedTimer>0) damage *= 1.35;
@@ -12939,7 +13116,12 @@ function popOneToilet(i, meta={}){
     const ox=t.x, oy=t.y, type=t.type, split=t.splitOnDeath;
     if(typeof GameManagers !== 'undefined' && GameManagers.Quantum) GameManagers.Quantum.notifyPairDeath(t, performance.now());
     const deadIdxB = toilets.indexOf(t);
-    if(deadIdxB >= 0) toilets.splice(deadIdxB, 1); score+=pts; totalPops++; waveKills++; addCombo(); registerTacticalKill(false, crit);
+    if(deadIdxB >= 0) toilets.splice(deadIdxB, 1); if(typeof hasNightItem === 'function' && hasNightItem('nocturnal_vampirism')){
+      if(player.lives < player.maxLives){ player.lives++; updateHud(); }
+      titanBarrierTimer = Math.max(titanBarrierTimer, 300);
+      popParticles(ox, oy, '#ff3344', 12);
+    }
+    score+=pts; totalPops++; waveKills++; addCombo(); registerTacticalKill(false, crit);
     // Shock Freeze nearby enemies when a comrade is popped!
     const freezeRadius = 145 + (t.elite ? 40 : 0);
     for(let mi = 0; mi < toilets.length; mi++){
@@ -19733,6 +19915,7 @@ let cadreChronoSlowMult = 1;
     if(REALISM.enabled && REALISM.dayNight){
       worldClock += dt;
       realismNight = 0.5 - 0.5 * Math.cos((worldClock % REALISM.dayLength) / REALISM.dayLength * Math.PI * 2);
+      updateNightCycleState(realismNight);
     }
     const realismUpkeep = (REALISM.enabled ? deployedAllies.length * REALISM.upkeepPerAlly : 0);
     sigma=Math.max(0,sigma-(0.035+player.sigmaDecayBonus+realismUpkeep)*dt);
